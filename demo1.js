@@ -115,7 +115,7 @@ console.log('node1', node1.helia.libp2p.getMultiaddrs(), 'node2', node2.helia.li
 // wait node2 connects to node1
 await new Promise(r => node1.helia.libp2p.addEventListener('connection:open', r))
 
-// create a public key to publish as an IPNS name
+// create a public key to publish as an ipns name
 const peerId = await createEd25519PeerId()
 
 // join the ipns over pubsub topics (throws because no records published yet)
