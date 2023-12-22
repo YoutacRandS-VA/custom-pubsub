@@ -1,6 +1,5 @@
 import { createLibp2p } from 'libp2p'
 import { gossipsub } from '@chainsafe/libp2p-gossipsub'
-// import { gossipsub } from './node_modules/helia/node_modules/@chainsafe/libp2p-gossipsub/dist/src/index.js'
 import { tcp } from '@libp2p/tcp'
 import { mplex } from '@libp2p/mplex'
 import { yamux } from '@chainsafe/libp2p-yamux'
@@ -113,7 +112,7 @@ const node2 = await createNode2()
 
 console.log('node1', node1.helia.libp2p.getMultiaddrs(), 'node2', node2.helia.libp2p.getMultiaddrs(), '\n')
 
-// await node2 connects to node1
+// wait node2 connects to node1
 await new Promise(r => node1.helia.libp2p.addEventListener('connection:open', r))
 
 // create a public key to publish as an IPNS name
