@@ -97,7 +97,7 @@ const createNode = async (bootstrapNode) => {
             if (subscription.subscribe) {
                 try {
                     const value = await libp2p.services.fetch.fetch(evt.detail.peerId, subscription.topic)
-                    console.log({value})
+                    console.log('libp2p fetch', {key: subscription.topic, value: value && uint8ArrayToString(value)})
                 }
                 catch (e) {
                     console.log(e)
@@ -109,9 +109,23 @@ const createNode = async (bootstrapNode) => {
 
     // answer fetch request by sending the last ipns record
     const libp2pFetchLookupFunction = async (key) => {
-        const value = await ipnsOverPubsubRouter.localStore.get(uint8ArrayFromString(key))
-        console.log({value})
-        return new Uint8Array([1,2,3])
+        let value
+        try {
+            const pubsubNamespace = '/record/'
+            function fetchKeyToLocalStoreKey(key) {
+                if (key.substring(0, pubsubNamespace.length) !== pubsubNamespace) {
+                    throw Error('key received is not from a record')
+                }
+                key = key.substring(pubsubNamespace.length)
+                return uint8ArrayFromString(key, 'base64url')
+            }
+            value = await ipnsOverPubsubRouter.localStore.get(fetchKeyToLocalStoreKey(key))
+            console.log('libp2pFetchLookupFunction', {recordKey: key, localStoreKey: uint8ArrayToString(fetchKeyToLocalStoreKey(key)), value: uint8ArrayToString(value)})
+        }
+        catch (e) {
+            console.log('libp2pFetchLookupFunction error', e)
+        }
+        return value
     }
     libp2p.services.fetch.registerLookupFunction('/record/', libp2pFetchLookupFunction)
 
