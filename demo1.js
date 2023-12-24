@@ -43,6 +43,13 @@ const logEvents = (nodeName, node) => {
         console.log(`  message: ${uint8ArrayToString(evt.detail.data).replaceAll(/[^a-zA-Z0-9/\-:.!@]/g, '@')}`) // don't print binary
         console.log('')
     })
+    node.services.pubsub.addEventListener('subscription-change', (evt) => {
+        for (const subscription of evt.detail.subscriptions) {
+            const subscribe = subscription.subscribe ? 'subscribed to' : 'unsubscribed from'
+            console.log(`${nodeName} (${node.peerId.toString().slice(-8)}): ${evt.detail.peerId.toString().slice(-8)} ${subscribe} ${subscription.topic}`)
+            console.log('')
+        }
+    })
 }
 
 const createNode1 = async () => {
