@@ -13,5 +13,5 @@ node demo2.js
 # demo3: ipns over pubsub using fetch protocol (testing against kubo)
 
 ```
-node demo2.js
+node demo3.js
 ```
