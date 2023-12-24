@@ -17,6 +17,7 @@ import { kadDHT } from '@libp2p/kad-dht'
 import { ipnsSelector } from 'ipns/selector'
 import { ipnsValidator } from 'ipns/validator'
 import { fetch } from '@libp2p/fetch'
+import { equals as uint8ArrayEquals } from 'uint8arrays/equals'
 
 const logEvents = (nodeName, node) => {
     const events = [
@@ -47,7 +48,7 @@ const logEvents = (nodeName, node) => {
     node.services.pubsub.addEventListener('subscription-change', (evt) => {
         for (const subscription of evt.detail.subscriptions) {
             const subscribe = subscription.subscribe ? 'subscribed to' : 'unsubscribed from'
-            console.log(`${nodeName} (${node.peerId.toString().slice(-8)}): ${evt.detail.peerId.toString().slice(-8)} ${subscribe} ${subscription.topic}`)
+            console.log(`${nodeName}: ${evt.detail.peerId.toString().slice(-8)} ${subscribe} ${subscription.topic}`)
             console.log('')
         }
     })
@@ -56,7 +57,6 @@ const logEvents = (nodeName, node) => {
 let nodeCount = 0
 const createNode = async (bootstrapNode) => {
     nodeCount++
-    const nodeName = `node${nodeCount}`
 
     let peerDiscovery
     if (bootstrapNode) {
@@ -78,6 +78,7 @@ const createNode = async (bootstrapNode) => {
             fetch: fetch()
         }
     })
+    const nodeName = `node${nodeCount}-${libp2p.peerId.toString().slice(-8)}`
     logEvents(nodeName, libp2p)
 
     const helia = await createHelia({
@@ -91,13 +92,46 @@ const createNode = async (bootstrapNode) => {
       ]
     })
 
+    const pubsubNamespace = '/record/'
+    function fetchKeyToLocalStoreKey(key) {
+        if (key.substring(0, pubsubNamespace.length) !== pubsubNamespace) {
+            throw Error('key received is not from a record')
+        }
+        key = key.substring(pubsubNamespace.length)
+        return uint8ArrayFromString(key, 'base64url')
+    }
+
+    const addRecordToLocalStore = async (key, data) => {
+        const localStoreKey = fetchKeyToLocalStoreKey(key)
+
+        await ipnsValidator(localStoreKey, data)
+        if (await ipnsOverPubsubRouter.localStore.has(localStoreKey)) {
+            const currentRecord = await ipnsOverPubsubRouter.localStore.get(localStoreKey)
+            if (uint8ArrayEquals(currentRecord, data)) {
+                console.log(`${nodeName}: libp2p fetch not storing ipns record as we already have it`)
+                return
+            }
+            const records = [currentRecord, data]
+            const index = ipnsSelector(localStoreKey, records)
+            if (index === 0) {
+                console.log(`${nodeName}: libp2p fetch not storing ipns record as the one we have is better`)
+                return
+            }
+        }
+        await ipnsOverPubsubRouter.localStore.put(localStoreKey, data)
+        console.log(`${nodeName}: libp2p fetch stored new ipns record`)
+    }
+
     // fetch last ipns record from peers on join topic
     libp2p.services.pubsub.addEventListener('subscription-change', async (evt) => {
         for (const subscription of evt.detail.subscriptions) {
             if (subscription.subscribe) {
                 try {
                     const value = await libp2p.services.fetch.fetch(evt.detail.peerId, subscription.topic)
-                    console.log('libp2p fetch', {key: subscription.topic, value: value && uint8ArrayToString(value)})
+                    if (value) {
+                        console.log(`${nodeName}: libp2p fetch`, {from: evt.detail.peerId.toString().slice(-8), key: subscription.topic, response: value && uint8ArrayToString(value)})
+                        await addRecordToLocalStore(subscription.topic, value)
+                    }
                 }
                 catch (e) {
                     console.log(e)
@@ -111,19 +145,11 @@ const createNode = async (bootstrapNode) => {
     const libp2pFetchLookupFunction = async (key) => {
         let value
         try {
-            const pubsubNamespace = '/record/'
-            function fetchKeyToLocalStoreKey(key) {
-                if (key.substring(0, pubsubNamespace.length) !== pubsubNamespace) {
-                    throw Error('key received is not from a record')
-                }
-                key = key.substring(pubsubNamespace.length)
-                return uint8ArrayFromString(key, 'base64url')
-            }
             value = await ipnsOverPubsubRouter.localStore.get(fetchKeyToLocalStoreKey(key))
-            console.log('libp2pFetchLookupFunction', {recordKey: key, localStoreKey: uint8ArrayToString(fetchKeyToLocalStoreKey(key)), value: uint8ArrayToString(value)})
+            console.log(`${nodeName}: libp2pFetchLookupFunction`, {recordKey: key, localStoreKey: uint8ArrayToString(fetchKeyToLocalStoreKey(key)), value: uint8ArrayToString(value)})
         }
         catch (e) {
-            console.log('libp2pFetchLookupFunction error', e)
+            // console.log(`${nodeName}: libp2pFetchLookupFunction error:`, e.message)
         }
         return value
     }
@@ -231,6 +257,7 @@ while (true) {
 }
 
 // third node joins the pubsub and receives the persistent data using libp2p fetch protocol
+console.log('fetching from node3 using libp2p fetch')
 const node3 = await createNode(node1)
 
 // resolve the name
