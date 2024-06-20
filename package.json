@@ -19,7 +19,7 @@
     "@libp2p/fetch": "^1.0.5",
     "@libp2p/identify": "^1.0.7",
     "@libp2p/mplex": "^10.0.8",
-    "@libp2p/tcp": "^9.0.8",
+    "@libp2p/tcp": "^9.0.26",
     "helia": "^2.1.0",
     "kubo": "^0.25.0",
     "libp2p": "^1.0.12",
