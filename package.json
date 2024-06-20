@@ -16,7 +16,7 @@
     "@helia/ipns": "^3.0.1",
     "@helia/strings": "^1.0.1",
     "@helia/unixfs": "^1.4.3",
-    "@libp2p/fetch": "^1.0.5",
+    "@libp2p/fetch": "^1.0.18",
     "@libp2p/identify": "^1.0.7",
     "@libp2p/mplex": "^10.0.8",
     "@libp2p/tcp": "^9.0.8",
